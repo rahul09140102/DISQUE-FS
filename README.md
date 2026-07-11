@@ -1,72 +1,77 @@
 # DisQUE-FS: Frequency-Split Appearance Statistics for Improved Full-Reference Image Quality Assessment
 
-> A lightweight, training-free enhancement to the **Disentangled Quality Evaluator (DisQUE)** for Full-Reference Image Quality Assessment (FR-IQA).
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)]()
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-red.svg)]()
+[![License](https://img.shields.io/badge/License-MIT-green.svg)]()
+
+Official implementation of **DisQUE-FS**, a lightweight improvement over **DisQUE** for Full-Reference Image Quality Assessment (FR-IQA).
+
+This work introduces **Frequency-Split Appearance Statistics (FSAS)**, a training-free modification that replaces the global standard deviation used in DisQUE with separate **low-frequency** and **high-frequency** statistics. The modification improves distortion discrimination while requiring **no retraining** of the DisQUE encoder.
 
 ---
 
-## Overview
+# Overview
 
-DisQUE-FS extends the original **DisQUE** framework by introducing **Frequency-Split Appearance Statistics (FSAS)**, a novel appearance representation that separates feature-map statistics into **low-frequency** and **high-frequency** components.
+DisQUE represents image appearance using spatial statistics extracted from intermediate feature maps.
 
-Instead of representing appearance using a single global standard deviation, DisQUE-FS computes:
+The original implementation summarizes each feature map using
 
-- **Low-Frequency Standard Deviation (LF-STD)**
-- **High-Frequency Standard Deviation (HF-STD)**
+- Mean
+- Global Standard Deviation
 
-using a simple average-pooling decomposition.
+Our proposed method replaces the single standard deviation with
 
-This modification:
+- Low-Frequency Standard Deviation (LF-STD)
+- High-Frequency Standard Deviation (HF-STD)
 
-- requires **zero encoder retraining**
-- requires **zero architectural modifications**
-- adds only **minimal implementation changes**
-- improves quality prediction performance across multiple benchmark datasets.
+obtained by decomposing feature maps into low-frequency and high-frequency components using average pooling.
 
----
-
-# Highlights
-
-✔ Training-free enhancement
-
-✔ Compatible with existing pretrained DisQUE checkpoints
-
-✔ Improved feature representation using frequency-aware appearance statistics
-
-✔ Supports dataset-wide feature extraction
-
-✔ Compatible with:
-
-- LIVE IQA
-- CSIQ
-- TID2013
-- KADID-10K
+This simple modification preserves the original DisQUE architecture while improving prediction accuracy across multiple IQA datasets.
 
 ---
 
 # Proposed Method
 
-Original DisQUE computes appearance features as
+For each feature map,
+
+1. Apply Average Pooling
 
 ```
-Appearance = Mean + Global Standard Deviation
+Feature Map
+      │
+Average Pool
+      │
+Low Frequency Component
 ```
 
-DisQUE-FS replaces the global standard deviation with
+2. Compute residual
 
 ```
-Appearance = Mean
-           + Low-Frequency Standard Deviation
-           + High-Frequency Standard Deviation
+High Frequency = Original − Low Frequency
 ```
 
-where feature maps are decomposed into
+3. Compute statistics
 
-- Low-frequency component
-- High-frequency residual
+```
+Mean
+LF Standard Deviation
+HF Standard Deviation
+```
 
-using average pooling.
+instead of
 
-This richer statistical representation improves distortion discrimination without changing the backbone network.
+```
+Mean
+Global Standard Deviation
+```
+
+This increases the feature dimensionality from
+
+```
+8192 → 12288
+```
+
+without modifying the backbone network.
 
 ---
 
@@ -75,29 +80,112 @@ This richer statistical representation improves distortion discrimination withou
 ```
 DISQUE-FS/
 │
-├── disque/
+├── disque/                         # Original DisQUE framework
+│   ├── models/
+│   ├── learning/
+│   ├── utils/
 │   ├── criteria/
 │   ├── datasets/
-│   ├── learning/
-│   ├── models/
-│   ├── utils/
-│   └── __init__.py
+│   ├── disque_module.py
+│   └── disque_fex.py
 │
-├── download_data.py
+├── DisQUE_FS_Implementation.ipynb  # Main notebook (our implementation)
+│
 ├── extract_features.py
 ├── extract_features_from_dataset.py
+├── train_disque.py
 ├── process_image_using_example.py
 ├── process_all_sample_images.sh
-├── train_disque.py
-│
+├── download_data.py
 ├── requirements.txt
-├── README.md
-└── LICENSE
+└── README.md
 ```
 
 ---
 
-# Installation
+# Requirements
+
+Install all dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+The project requires
+
+```
+Python 3.10+
+PyTorch
+TorchVision
+NumPy
+SciPy
+Pandas
+OpenCV
+scikit-image
+PyWavelets
+TensorBoard
+Lightly
+Lightning
+wandb
+gdown
+```
+
+Additional packages are automatically installed from GitHub
+
+```
+videolib
+qualitylib
+tonemaplib
+```
+
+---
+
+# Datasets
+
+The experiments use
+
+- TID2013
+- KADID-10K
+
+Download the datasets manually and update the paths inside the notebook.
+
+Example
+
+```
+/content/drive/MyDrive/project_datasets/
+```
+
+or
+
+```
+/kaggle/input/
+```
+
+depending on your platform.
+
+---
+
+# Pretrained Model
+
+The notebook uses the pretrained **DisQUE SDR checkpoint**.
+
+Download the checkpoint using
+
+```
+download_data.py
+```
+
+or place the checkpoint manually inside
+
+```
+DisQUE_Checkpoints/
+```
+
+---
+
+# Running the Project
+
+## Step 1
 
 Clone the repository
 
@@ -107,25 +195,9 @@ git clone https://github.com/rahul09140102/DISQUE-FS.git
 cd DISQUE-FS
 ```
 
-Create a virtual environment
+---
 
-```bash
-python -m venv .venv
-```
-
-Activate it
-
-### Windows
-
-```bash
-.venv\Scripts\activate
-```
-
-### Linux / macOS
-
-```bash
-source .venv/bin/activate
-```
+## Step 2
 
 Install dependencies
 
@@ -135,166 +207,185 @@ pip install -r requirements.txt
 
 ---
 
-# Download Pretrained Models
+## Step 3
 
-Download pretrained checkpoints and sample data
+Open
 
-```bash
-python download_data.py
+```
+DisQUE_FS_Implementation.ipynb
+```
+
+This notebook contains the complete implementation.
+
+---
+
+## Step 4
+
+Run the notebook sequentially.
+
+The notebook performs
+
+- Environment setup
+- Imports
+- DisQUE setup
+- Loading pretrained checkpoint
+- Dataset loading
+- Feature extraction
+- Frequency-Split Appearance Statistics
+- Ridge Regression
+- Nested Hyperparameter Search
+- Performance evaluation
+- Statistical analysis
+- Visualization
+- Final comparison tables
+
+Run every cell from top to bottom.
+
+---
+
+# Experimental Pipeline
+
+```
+Reference Image
+        │
+        ▼
+Pretrained DisQUE Encoder
+        │
+        ▼
+Feature Maps
+        │
+        ▼
+Frequency Split
+        │
+ ┌───────────────┐
+ │ Low Frequency │
+ └───────────────┘
+        │
+ ┌───────────────┐
+ │ High Frequency│
+ └───────────────┘
+        │
+        ▼
+LF STD + HF STD
+        │
+        ▼
+Feature Vector
+        │
+        ▼
+Ridge Regression
+        │
+        ▼
+Quality Score
 ```
 
 ---
 
-# Running the Project
+# Evaluation
 
-## 1. Feature Extraction for a Single Reference–Distorted Pair
+The notebook reproduces experiments on
 
-```bash
-python extract_features.py \
-    --ref_video path/to/reference \
-    --dis_video path/to/distorted \
-    --ckpt_path path/to/checkpoint.ckpt
-```
+## TID2013
 
----
+- Leave-One-Reference-Out Cross Validation
+- SROCC
+- PLCC
 
-## 2. Feature Extraction for an Entire Dataset
+## KADID-10K
 
-```bash
-python extract_features_from_dataset.py \
-    --dataset path/to/dataset \
-    --ckpt_path path/to/checkpoint.ckpt \
-    --processes 8
-```
+- 5-Fold Cross Validation
+- SROCC
+- PLCC
 
-The extracted features are saved to disk and can subsequently be used for quality prediction.
+It also generates
 
----
-
-## 3. Train the Quality Prediction Model
-
-```bash
-python train_disque.py
-```
+- Scatter plots
+- Per-distortion analysis
+- Performance tables
+- Statistical comparisons
 
 ---
 
-## 4. Example-Guided Image Processing
+# Expected Outputs
 
-```bash
-python process_image_using_example.py \
-    --ckpt_path path/to/checkpoint.ckpt \
-    --source_range <source_range> \
-    --target_range <target_range> \
-    --example_source_path <source_image> \
-    --example_target_path <target_image> \
-    --input_source_path <input_image> \
-    --output_target_path <output_image>
-```
+Running the notebook generates
+
+- Feature vectors
+- Predicted MOS
+- Scatter plots
+- Correlation tables
+- Distortion-wise performance
+- Publication-ready figures
 
 ---
 
-## 5. Run All Sample Examples
+# Results
 
-```bash
-./process_all_sample_images.sh
-```
+Compared to the original DisQUE,
 
----
+DisQUE-FS
 
-# Experimental Datasets
-
-The implementation has been evaluated using the following benchmark datasets.
-
-| Dataset | Evaluation |
-|----------|------------|
-| LIVE IQA | ✔ |
-| CSIQ | ✔ |
-| TID2013 | ✔ |
-| KADID-10K | ✔ |
+- Improves TID2013 performance
+- Improves KADID-10K performance
+- Improves distortion-specific prediction accuracy
+- Requires no retraining
+- Introduces only a lightweight feature extraction modification
 
 ---
 
-# Experimental Results
+# Main Contribution
 
-DisQUE-FS consistently improves the original DisQUE performance.
+✔ Training-free improvement over DisQUE
 
-| Dataset | Original DisQUE | DisQUE-FS |
-|---------|----------------:|----------:|
-| LIVE IQA | 0.867 | **0.872** |
-| CSIQ | 0.938 | **0.941** |
-| TID2013 | 0.909 | **0.922** |
-| KADID-10K | 0.934 | **0.936** |
+✔ Frequency-aware appearance representation
 
----
+✔ Zero backbone modifications
 
-# Research Contribution
+✔ Zero encoder retraining
 
-Compared to the original implementation, this repository introduces:
+✔ Better distortion discrimination
 
-- Frequency-Split Appearance Statistics (FSAS)
-- Low-Frequency Standard Deviation
-- High-Frequency Standard Deviation
-- Improved appearance feature representation
-- No retraining required
-- Minimal implementation overhead
-- Improved quality prediction performance
+✔ Improved SROCC and PLCC
 
 ---
 
 # Citation
 
-If you use this repository, please cite both the original DisQUE paper and the DisQUE-FS paper.
+If you use this repository, please cite
 
-### Original DisQUE
-
-```bibtex
-@article{venkataramanan2024disque,
-  title={Joint Quality Assessment and Example-Guided Image Processing by Disentangling Picture Appearance from Content},
-  author={Venkataramanan, A. K. and others},
-  journal={arXiv preprint},
-  year={2024}
-}
 ```
-
-### DisQUE-FS
-
-```bibtex
 @article{disquefs2026,
   title={DisQUE-FS: Frequency-Split Appearance Statistics for Improved Full-Reference Image Quality Assessment},
-  author={Anonymous},
+  author={Dikshant Singh et al.},
   year={2026}
 }
 ```
 
-(Replace this citation with the published version after acceptance.)
+and the original DisQUE paper
+
+```
+A. K. Venkataramanan,
+C. Stejerean,
+I. Katsavounidis,
+H. Tmar,
+A. C. Bovik,
+
+Joint Quality Assessment and Example-Guided Image Processing by Disentangling Picture Appearance from Content.
+
+arXiv, 2024.
+```
 
 ---
 
 # Acknowledgements
 
-This work is built upon the original **DisQUE** implementation developed by:
+This work builds upon the original **DisQUE** framework proposed by
 
-- A. K. Venkataramanan
-- C. Stejerean
-- I. Katsavounidis
-- H. Tmar
-- A. C. Bovik
+**A. K. Venkataramanan et al.**
 
-The original repository has been extended with the proposed **Frequency-Split Appearance Statistics (FSAS)** for improved full-reference image quality assessment.
+We thank the original authors for making their implementation publicly available.
 
 ---
 
 # License
 
-This repository follows the license provided with the original DisQUE implementation.
-
-Please refer to the `LICENSE` file for details.
-
----
-
-# Contact
-
-If you encounter issues or have suggestions, please open an Issue on this repository.
-
-For research-related questions, feel free to contact the repository maintainer.
+MIT License
