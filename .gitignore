@@ -1,0 +1,33 @@
+__pycache__/
+.venv/
+.vscode/
+*.txt
+# Model checkpoints
+*.ckpt
+*.pth
+*.pt
+*.npz
+*.npy
+
+# Datasets / images
+DisQUE_Checkpoints/
+DisQUE_Images/
+images/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model checkpoints
+*.ckpt
+*.pth
+*.pt
+*.npz
+*.npy
+
+# Datasets / images
+DisQUE_Checkpoints/
+DisQUE_Images/
+images/
+
+# Jupyter
+.ipynb_checkpoints/
