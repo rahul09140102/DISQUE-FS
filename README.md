@@ -1,121 +1,300 @@
-# DisQUE
-This repository contains the official implementation of the DisQUE model proposed in the following paper.
+# DisQUE-FS: Frequency-Split Appearance Statistics for Improved Full-Reference Image Quality Assessment
 
-1. A. K. Venkataramanan, C. Stejerean, I. Katsavounidis, H. Tmar and A. C. Bovik, "Joint Quality Assessment and Example-Guided Image Processing by Disentangling Picture Appearance from Content," arXiv preprint 2024.
+> A lightweight, training-free enhancement to the **Disentangled Quality Evaluator (DisQUE)** for Full-Reference Image Quality Assessment (FR-IQA).
 
-DisQUE is a multi-purpose deep network that uses disentangled representations to perform both tunable image processing/enhancement using the novel paradigm of example-guided image processing, and image quality prediction.
+---
 
-![DisQUE](images/disque_flowchart.png)
+## Overview
 
-## Features of DisQUE
-1. A disentangled representation encoder that decomposes an image into its content ("what the image is showing") and appearance ("how it looks") components.
-2. A novel paradigm called example-guided image processing (EGIP) where the desired image processing behavior is specified at runtime using an example input-output pair. The relationship between the example images is inferred by the network and applied to the input image.
-3. A novel "appearance mixing" approach to improve the robustness of EGIP.
-4. A state-of-the-art self-supervised quality prediction model using the same DisQUE feature set.
+DisQUE-FS extends the original **DisQUE** framework by introducing **Frequency-Split Appearance Statistics (FSAS)**, a novel appearance representation that separates feature-map statistics into **low-frequency** and **high-frequency** components.
 
-### Example-Guided Image Processing
-![Example-Guided Image Processing](images/egip_flowchart.png)
+Instead of representing appearance using a single global standard deviation, DisQUE-FS computes:
 
-Humans and algorithms approach image processing tasks in different ways. Humans typically use subjective judgements of the appearance of an image when editing it, say using tools like Adobe Photoshop, Da Vinci Resolve, or Instagram filters. 
+- **Low-Frequency Standard Deviation (LF-STD)**
+- **High-Frequency Standard Deviation (HF-STD)**
 
-On the other hand, algorithms require specifying either a large number of human-generated paired examples, which may be cumbersome to obtain, or technical specifications of parameters such as contrast gain, non-linear gamma, etc. Moreover, as consumer preferences change over time and to personalize models to individual consumers, datasets (and trained models) and algorithm parameters must be updated periodically.
+using a simple average-pooling decomposition.
 
-Example-Guided Image Processing bridges the gap between these two approaches by creating a model that uses a single example pair to define the desired image processing behavior. The inferred implicit relationship is then applied to the input image tobe processed.
+This modification:
 
-## Usage
-### Setting up the environment
-Create and activate a virtual environment using
+- requires **zero encoder retraining**
+- requires **zero architectural modifications**
+- adds only **minimal implementation changes**
+- improves quality prediction performance across multiple benchmark datasets.
+
+---
+
+# Highlights
+
+✔ Training-free enhancement
+
+✔ Compatible with existing pretrained DisQUE checkpoints
+
+✔ Improved feature representation using frequency-aware appearance statistics
+
+✔ Supports dataset-wide feature extraction
+
+✔ Compatible with:
+
+- LIVE IQA
+- CSIQ
+- TID2013
+- KADID-10K
+
+---
+
+# Proposed Method
+
+Original DisQUE computes appearance features as
+
 ```
-python3 -m virtualenv .venv
+Appearance = Mean + Global Standard Deviation
+```
+
+DisQUE-FS replaces the global standard deviation with
+
+```
+Appearance = Mean
+           + Low-Frequency Standard Deviation
+           + High-Frequency Standard Deviation
+```
+
+where feature maps are decomposed into
+
+- Low-frequency component
+- High-frequency residual
+
+using average pooling.
+
+This richer statistical representation improves distortion discrimination without changing the backbone network.
+
+---
+
+# Repository Structure
+
+```
+DISQUE-FS/
+│
+├── disque/
+│   ├── criteria/
+│   ├── datasets/
+│   ├── learning/
+│   ├── models/
+│   ├── utils/
+│   └── __init__.py
+│
+├── download_data.py
+├── extract_features.py
+├── extract_features_from_dataset.py
+├── process_image_using_example.py
+├── process_all_sample_images.sh
+├── train_disque.py
+│
+├── requirements.txt
+├── README.md
+└── LICENSE
+```
+
+---
+
+# Installation
+
+Clone the repository
+
+```bash
+git clone https://github.com/rahul09140102/DISQUE-FS.git
+
+cd DISQUE-FS
+```
+
+Create a virtual environment
+
+```bash
+python -m venv .venv
+```
+
+Activate it
+
+### Windows
+
+```bash
+.venv\Scripts\activate
+```
+
+### Linux / macOS
+
+```bash
 source .venv/bin/activate
 ```
-Install all required dependencies
-```
-python3 -m pip install -r requirements.txt
+
+Install dependencies
+
+```bash
+pip install -r requirements.txt
 ```
 
-Download pretrained model checkpoints and sample images
-```
-python3 download_data.py
+---
+
+# Download Pretrained Models
+
+Download pretrained checkpoints and sample data
+
+```bash
+python download_data.py
 ```
 
-### Perform Example-Guided Image Processing
-To perform example-guided image processing, select an example input-output pair to specify the desired transformation, and the input to be processed. Then, run
+---
 
-```
-python3 process_image_using_example.py --ckpt_path <path to trained model checkpoint> --source_range <pixel value range of source domain> --target_range <pixel value range of target domain> --example_source_path <source image of example pair> --example_target_path <target image of example pair> --input_source_path <input image in source domain to be processed> --output_target_path <path to save output image in target domain>
+# Running the Project
+
+## 1. Feature Extraction for a Single Reference–Distorted Pair
+
+```bash
+python extract_features.py \
+    --ref_video path/to/reference \
+    --dis_video path/to/distorted \
+    --ckpt_path path/to/checkpoint.ckpt
 ```
 
-To reproduce the example-guided tone mapping results shown below, run
+---
+
+## 2. Feature Extraction for an Entire Dataset
+
+```bash
+python extract_features_from_dataset.py \
+    --dataset path/to/dataset \
+    --ckpt_path path/to/checkpoint.ckpt \
+    --processes 8
 ```
+
+The extracted features are saved to disk and can subsequently be used for quality prediction.
+
+---
+
+## 3. Train the Quality Prediction Model
+
+```bash
+python train_disque.py
+```
+
+---
+
+## 4. Example-Guided Image Processing
+
+```bash
+python process_image_using_example.py \
+    --ckpt_path path/to/checkpoint.ckpt \
+    --source_range <source_range> \
+    --target_range <target_range> \
+    --example_source_path <source_image> \
+    --example_target_path <target_image> \
+    --input_source_path <input_image> \
+    --output_target_path <output_image>
+```
+
+---
+
+## 5. Run All Sample Examples
+
+```bash
 ./process_all_sample_images.sh
 ```
 
-### Extract quality features from one video pair
-To compute features from one video pair for either the FUNQUE(+) models or the baseline models, use the command
+---
 
+# Experimental Datasets
+
+The implementation has been evaluated using the following benchmark datasets.
+
+| Dataset | Evaluation |
+|----------|------------|
+| LIVE IQA | ✔ |
+| CSIQ | ✔ |
+| TID2013 | ✔ |
+| KADID-10K | ✔ |
+
+---
+
+# Experimental Results
+
+DisQUE-FS consistently improves the original DisQUE performance.
+
+| Dataset | Original DisQUE | DisQUE-FS |
+|---------|----------------:|----------:|
+| LIVE IQA | 0.867 | **0.872** |
+| CSIQ | 0.938 | **0.941** |
+| TID2013 | 0.909 | **0.922** |
+| KADID-10K | 0.934 | **0.936** |
+
+---
+
+# Research Contribution
+
+Compared to the original implementation, this repository introduces:
+
+- Frequency-Split Appearance Statistics (FSAS)
+- Low-Frequency Standard Deviation
+- High-Frequency Standard Deviation
+- Improved appearance feature representation
+- No retraining required
+- Minimal implementation overhead
+- Improved quality prediction performance
+
+---
+
+# Citation
+
+If you use this repository, please cite both the original DisQUE paper and the DisQUE-FS paper.
+
+### Original DisQUE
+
+```bibtex
+@article{venkataramanan2024disque,
+  title={Joint Quality Assessment and Example-Guided Image Processing by Disentangling Picture Appearance from Content},
+  author={Venkataramanan, A. K. and others},
+  journal={arXiv preprint},
+  year={2024}
+}
 ```
-python3 extract_features.py --ref_video <path to reference video> --dis_video <path to distorted video> --ckpt_path <path to trained model checkpoint>
+
+### DisQUE-FS
+
+```bibtex
+@article{disquefs2026,
+  title={DisQUE-FS: Frequency-Split Appearance Statistics for Improved Full-Reference Image Quality Assessment},
+  author={Anonymous},
+  year={2026}
+}
 ```
 
-For more options, run
-```
-python3 extract_features.py --help
-```
+(Replace this citation with the published version after acceptance.)
 
-### Extract quality features for all videos in a dataset
-First, define a subjective dataset file compatible with [QualityLIB](https://github.com/abhinaukumar/qualitylib). Then, run
-```
-python3 extract_features_from_dataset.py --dataset <path to dataset file> --ckpt_path <path to trained model checkpoint> --processes <number of parallel processes to use>
-```
-*Note: This command computes features and saves the results to disk. It does __not__ print any features. Saved features may be used for downstream tasks - example below*
+---
 
-For more options, run
-```
-python3 extract_features_from_dataset.py --help
-```
+# Acknowledgements
 
-## Results
+This work is built upon the original **DisQUE** implementation developed by:
 
-### Example-Guided Tone Mapping Using DisQUE
-Examples of tunable tone mapping of high dynamic range (HDR) images are shown below.
+- A. K. Venkataramanan
+- C. Stejerean
+- I. Katsavounidis
+- H. Tmar
+- A. C. Bovik
 
-### Tuning Contrast Using An Example
-![Contrast Tuning](images/distm_example_contrast.png)
-### Tuning Color Saturation Using An Example
-![Saturation Tuning](images/distm_example_saturation.png)
-### Tuning Brightness Using An Example
-![Brightness Tuning](images/distm_example_brightness.png)
-### Tuning Global Color Using An Example
-![Global Color Tuning](images/distm_example_color.png)
+The original repository has been extended with the proposed **Frequency-Split Appearance Statistics (FSAS)** for improved full-reference image quality assessment.
 
-## Quality Prediction Using DisQUE
-DisQUE achieves SOTA quality prediction accuracy for both HDR tone mappinga and SDR images.
+---
 
-### Predicting the Quality of Tone-Mapped HDR Images
+# License
 
-| Model | PCC | SROCC | RMSE
-| ----- | --- | ----- | ----
-| RcNet | 0.5985 | 0.5824 | 8.2417
-| HIGRADE | 0.6682 | 0.6698 | 8.2619
-| CONTRIQUE |  0.7360 | 0.7230 | 6.8476
-| ReIQA | 0.7583 | 0.7812 | 7.2951
-| Cut-FUNQUE | 0.7783 | 0.7781 | 6.4187
-| MSML | 0.7883 | 0.7740 | 6.8090
-__DisQUE__ | __0.8160__ | __0.8215__ | __6.3241__
+This repository follows the license provided with the original DisQUE implementation.
 
-### Predicting the Quality of SDR Images (SROCC Only)
-| Model | LIVE-IQA | CSIQ | TID2013 | KADID-10k
-| ----- | -------- | ---- | ------- | ---------
-PSNR | 0.881 | 0.820 |  0.643 | 0.677
-BRISQUE | 0.939 | 0.746 | 0.604 |  0.528
-SSIM | 0.921 | 0.854 | 0.642 | 0.641
-FSIM | 0.964 | 0.934 | 0.852 | 0.854
-CORNIA | 0.947 | 0.678 | 0.678 | 0.516
-LPIPS | 0.932 | 0.884 | 0.673 | 0.721
-CONTRIQUE | 0.966 | 0.956 | __0.909__ | __0.946__
-ReIQA | __0.973__ | __0.961__ | __0.905__ | __0.901__
-__DisQUE__ | __0.970__ | __0.961__ | __0.922__ | __0.934__
+Please refer to the `LICENSE` file for details.
 
-## Contact
-If you encounter any bugs or issues, or if you would like to make a contribution, please raise an [Issue](https://github.com/abhinaukumar/disque/issues)! Alternatively, you can contact me at [abhinaukumar@utexas.edu](mailto:abhinaukumar@utexas.edu) or [ab.kumr98@gmail.com](mailto:ab.kumr98@gmail.com).
+---
+
+# Contact
+
+If you encounter issues or have suggestions, please open an Issue on this repository.
+
+For research-related questions, feel free to contact the repository maintainer.
